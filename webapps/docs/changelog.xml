@@ -81,6 +81,17 @@
         searching for nested groups when the JNDIRealm is configured with
         <code>roleNested</code> set to <code>true</code>. (markt)
       </fix>
+      <fix>
+        <bug>63236</bug>: Use <code>String.intern()</code> as suggested by
+        Phillip Webb to reduce memory wasted due to String duplication. This
+        changes saves ~245k when starting a clean installation. With additional
+        thanks to YourKit Java profiler for helping to track down the wasted
+        memory and the root causes. (markt)
+      </fix>
+      <fix>
+        <bug>63246</bug>: Fix a potential <code>NullPointerException</code> when
+        calling <code>AsyncContext.dispatch()</code>. (markt)
+      </fix>
     </changelog>
   </subsection>
   <subsection name="Coyote">
@@ -115,6 +126,26 @@
         <a href="https://bugs.openjdk.java.net/browse/JDK-8157404">JRE KeyStore
         loading bug</a>. (markt)
       </add>
+      <fix>
+        NIO2 should try to use SocketTimeoutException everywhere rather than a
+        mix of it and InterruptedByTimeout. (remm)
+      </fix>
+      <fix>
+        Correct an error in the request validation that meant that HTTP/2 push
+        requests always resulted in a 400 response. (markt)
+      </fix>
+      <fix>
+        <bug>63223</bug>: Correctly account for push requests when tracking
+        currently active HTTP/2 streams. (markt)
+      </fix>
+      <fix>
+        Ensure enough buffer space when using TLS with NIO2 by using the main
+        read buffer to store additional decrypted data. (remm)
+      </fix>
+      <fix>
+        Verify HTTP/2 stream is still writable before assuming a timeout
+        occurred. (remm)
+      </fix>
     </changelog>
   </subsection>
   <subsection name="WebSocket">
