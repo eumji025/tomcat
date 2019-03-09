@@ -679,7 +679,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
         if (maxInactiveInterval > 0) {
             int timeIdle = (int) (getIdleTimeInternal() / 1000L);
             if (timeIdle >= maxInactiveInterval) {
-                expire(true);
+                expire(true);//过期处理
             }
         }
 

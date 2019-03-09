@@ -529,7 +529,7 @@ public abstract class ManagerBase extends LifecycleMBeanBase implements Manager 
      */
     @Override
     public void backgroundProcess() {
-        count = (count + 1) % processExpiresFrequency;
+        count = (count + 1) % processExpiresFrequency;//过期频率，也就是6次处理一次
         if (count == 0)
             processExpires();
     }
@@ -540,20 +540,20 @@ public abstract class ManagerBase extends LifecycleMBeanBase implements Manager 
     public void processExpires() {
 
         long timeNow = System.currentTimeMillis();
-        Session sessions[] = findSessions();
+        Session sessions[] = findSessions();//获取已有的session
         int expireHere = 0 ;
 
         if(log.isDebugEnabled())
             log.debug("Start expire sessions " + getName() + " at " + timeNow + " sessioncount " + sessions.length);
         for (int i = 0; i < sessions.length; i++) {
-            if (sessions[i]!=null && !sessions[i].isValid()) {
-                expireHere++;
+            if (sessions[i]!=null && !sessions[i].isValid()) {//判断是否可用
+                expireHere++;//过期数量+1
             }
         }
         long timeEnd = System.currentTimeMillis();
         if(log.isDebugEnabled())
              log.debug("End expire sessions " + getName() + " processingTime " + (timeEnd - timeNow) + " expired sessions: " + expireHere);
-        processingTime += ( timeEnd - timeNow );
+        processingTime += ( timeEnd - timeNow );//统计时间
 
     }
 
@@ -638,7 +638,7 @@ public abstract class ManagerBase extends LifecycleMBeanBase implements Manager 
 
     @Override
     public Session createSession(String sessionId) {
-
+        //判断是否存在可用的session，则拒绝
         if ((maxActiveSessions >= 0) &&
                 (getActiveSessions() >= maxActiveSessions)) {
             rejectedSessions++;
@@ -647,21 +647,21 @@ public abstract class ManagerBase extends LifecycleMBeanBase implements Manager 
                     maxActiveSessions);
         }
 
-        // Recycle or create a Session instance
+        // Recycle or create a Session instance，构建空session
         Session session = createEmptySession();
 
-        // Initialize the properties of the new session and return it
+        // 初始化session
         session.setNew(true);
         session.setValid(true);
         session.setCreationTime(System.currentTimeMillis());
-        session.setMaxInactiveInterval(getContext().getSessionTimeout() * 60);
+        session.setMaxInactiveInterval(getContext().getSessionTimeout() * 60);//超时时间
         String id = sessionId;
-        if (id == null) {
+        if (id == null) {//构建sessionId
             id = generateSessionId();
         }
         session.setId(id);
-        sessionCounter++;
-
+        sessionCounter++;//session数+1
+        //相当于延时任务
         SessionTiming timing = new SessionTiming(session.getCreationTime(), 0);
         synchronized (sessionCreationTiming) {
             sessionCreationTiming.add(timing);

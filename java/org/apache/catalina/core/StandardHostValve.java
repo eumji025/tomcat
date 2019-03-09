@@ -108,18 +108,21 @@ final class StandardHostValve extends ValveBase {
         // Select the Context to be used for this Request
         Context context = request.getContext();
         if (context == null) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                 sm.getString("standardHost.noContext"));
             return;
         }
-
+        //老轨迹，异步检测和设置
         if (request.isAsyncSupported()) {
             request.setAsyncSupported(context.getPipeline().isAsyncSupported());
         }
 
         boolean asyncAtStart = request.isAsync();
+        boolean asyncDispatching = request.isAsyncDispatching();
 
         try {
             context.bind(Globals.IS_SECURITY_ENABLED, MY_CLASSLOADER);
-
+            //判断异步是否已经开始，是否没有初始化
             if (!asyncAtStart && !context.fireRequestInitEvent(request.getRequest())) {
                 // Don't fire listeners during async processing (the listener
                 // fired for the request that called startAsync()).
@@ -128,13 +131,19 @@ final class StandardHostValve extends ValveBase {
                 return;
             }
 
-            // Ask this Context to process this request. Requests that are
-            // already in error must have been routed here to check for
-            // application defined error pages so DO NOT forward them to the the
-            // application for processing.
+            // Ask this Context to process this request. Requests that are in
+            // async mode and are not being dispatched to this resource must be
+            // in error and have been routed here to check for application
+            // defined error pages.
             try {
-                if (!response.isErrorReportRequired()) {
+                if (!asyncAtStart || asyncDispatching) {
                     context.getPipeline().getFirst().invoke(request, response);
+                } else {
+                    // Make sure this request/response is here because an error
+                    // report is required.
+                    if (!response.isErrorReportRequired()) {
+                        throw new IllegalStateException(sm.getString("standardHost.asyncStateError"));
+                    }
                 }
             } catch (Throwable t) {
                 ExceptionUtils.handleThrowable(t);
@@ -293,9 +302,9 @@ final class StandardHostValve extends ValveBase {
             return;
         }
 
-        ErrorPage errorPage = context.findErrorPage(throwable);
+        ErrorPage errorPage = findErrorPage(context, throwable);
         if ((errorPage == null) && (realError != throwable)) {
-            errorPage = context.findErrorPage(realError);
+            errorPage = findErrorPage(context, realError);
         }
 
         if (errorPage != null) {
@@ -397,6 +406,40 @@ final class StandardHostValve extends ValveBase {
             // Report our failure to process this custom page
             container.getLogger().error("Exception Processing " + errorPage, t);
             return false;
+
         }
+    }
+
+
+    /**
+     * Find and return the ErrorPage instance for the specified exception's
+     * class, or an ErrorPage instance for the closest superclass for which
+     * there is such a definition.  If no associated ErrorPage instance is
+     * found, return <code>null</code>.
+     *
+     * @param context The Context in which to search
+     * @param exception The exception for which to find an ErrorPage
+     */
+    private static ErrorPage findErrorPage
+        (Context context, Throwable exception) {
+
+        if (exception == null) {
+            return (null);
+        }
+        Class<?> clazz = exception.getClass();
+        String name = clazz.getName();
+        while (!Object.class.equals(clazz)) {
+            ErrorPage errorPage = context.findErrorPage(name);
+            if (errorPage != null) {
+                return (errorPage);
+            }
+            clazz = clazz.getSuperclass();
+            if (clazz == null) {
+                break;
+            }
+            name = clazz.getName();
+        }
+        return (null);
+
     }
 }

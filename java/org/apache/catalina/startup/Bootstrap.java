@@ -65,7 +65,7 @@ public final class Bootstrap {
         // Will always be non-null
         String userDir = System.getProperty("user.dir");
 
-        // Home first
+        // Home first首先尝试从catalina.home属性获取
         String home = System.getProperty(Globals.CATALINA_HOME_PROP);
         File homeFile = null;
 
@@ -77,13 +77,13 @@ public final class Bootstrap {
                 homeFile = f.getAbsoluteFile();
             }
         }
-
+        //如果不存在catalina.home
         if (homeFile == null) {
             // First fall-back. See if current directory is a bin directory
-            // in a normal Tomcat install
+            // in a normal Tomcat install 从user.dir获取bootstrap.jar
             File bootstrapJar = new File(userDir, "bootstrap.jar");
 
-            if (bootstrapJar.exists()) {
+            if (bootstrapJar.exists()) {//获取父文件夹为path
                 File f = new File(userDir, "..");
                 try {
                     homeFile = f.getCanonicalFile();
@@ -92,7 +92,7 @@ public final class Bootstrap {
                 }
             }
         }
-
+        //如果还是为空，则上面都不满足，使用user.dir
         if (homeFile == null) {
             // Second fall-back. Use current directory
             File f = new File(userDir);
@@ -103,11 +103,12 @@ public final class Bootstrap {
             }
         }
 
+        //设置环境变量catalina.home
         catalinaHomeFile = homeFile;
         System.setProperty(
                 Globals.CATALINA_HOME_PROP, catalinaHomeFile.getPath());
 
-        // Then base
+        // Then base 然后查看catalina.base是否存在值
         String base = System.getProperty(Globals.CATALINA_BASE_PROP);
         if (base == null) {
             catalinaBaseFile = catalinaHomeFile;
@@ -160,15 +161,17 @@ public final class Bootstrap {
 
     private ClassLoader createClassLoader(String name, ClassLoader parent)
         throws Exception {
-
+        //获取common.loader对于的值
         String value = CatalinaProperties.getProperty(name + ".loader");
         if ((value == null) || (value.equals("")))
             return parent;
 
+        //解析占位符
         value = replace(value);
 
         List<Repository> repositories = new ArrayList<>();
 
+        //分割url
         String[] repositoryPaths = getPaths(value);
 
         for (String repository : repositoryPaths) {
@@ -197,13 +200,14 @@ public final class Bootstrap {
                         new Repository(repository, RepositoryType.DIR));
             }
         }
-
+        //构建classLoader
         return ClassLoaderFactory.createClassLoader(repositories, parent);
     }
 
 
     /**
      * System property replacement in the given string.
+     * 解析占位符
      *
      * @param str The original string
      * @return the modified string
@@ -223,6 +227,7 @@ public final class Bootstrap {
                     pos_end = pos_start - 1;
                     break;
                 }
+                //解析的变量从环境变量获取
                 String propName = str.substring(pos_start + 2, pos_end);
                 String replacement;
                 if (propName.length() == 0) {
@@ -530,6 +535,7 @@ public final class Bootstrap {
 
 
     /**
+     * 初始化Catalina.base和catalina.home的初始值（如果存在则不需要）
      * Obtain the name of the configured base (instance) directory. Note that
      * home and base may be the same (and are by default). If this is not set
      * the value returned by {@link #getCatalinaHome()} will be used.

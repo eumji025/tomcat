@@ -664,7 +664,7 @@ public class Http11Processor extends AbstractProcessor {
         RequestInfo rp = request.getRequestProcessor();
         rp.setStage(org.apache.coyote.Constants.STAGE_PARSE);
 
-        // Setting up the I/O
+        // Setting up the I/O 初始化I/O的buffer
         setSocketWrapper(socketWrapper);
         inputBuffer.init(socketWrapper);
         outputBuffer.init(socketWrapper);
@@ -677,11 +677,11 @@ public class Http11Processor extends AbstractProcessor {
         SendfileState sendfileState = SendfileState.DONE;
 
         while (!getErrorState().isError() && keepAlive && !isAsync() && upgradeToken == null &&
-                sendfileState == SendfileState.DONE && !endpoint.isPaused()) {
+                sendfileState == SendfileState.DONE && !endpoint.isPaused()) {//判断状态是否合适
 
             // Parsing the request header
             try {
-                if (!inputBuffer.parseRequestLine(keptAlive)) {
+                if (!inputBuffer.parseRequestLine(keptAlive)) {//解析socket的byteBuff
                     if (inputBuffer.getParsingRequestLinePhase() == -1) {
                         return SocketState.UPGRADING;
                     } else if (handleIncompleteRequestLineRead()) {
@@ -689,15 +689,15 @@ public class Http11Processor extends AbstractProcessor {
                     }
                 }
 
-                if (endpoint.isPaused()) {
+                if (endpoint.isPaused()) {//如果被挂起则返回503，服务不可用
                     // 503 - Service unavailable
                     response.setStatus(503);
                     setErrorState(ErrorState.CLOSE_CLEAN, null);
                 } else {
                     keptAlive = true;
                     // Set this every time in case limit has been changed via JMX
-                    request.getMimeHeaders().setLimit(endpoint.getMaxHeaderCount());
-                    if (!inputBuffer.parseHeaders()) {
+                    request.getMimeHeaders().setLimit(endpoint.getMaxHeaderCount());//设置最大的header大小
+                    if (!inputBuffer.parseHeaders()) {//解析header
                         // We've read part of the request, don't recycle it
                         // instead associate it with the socket
                         openSocket = true;
@@ -730,21 +730,22 @@ public class Http11Processor extends AbstractProcessor {
                             log.debug(message, t);
                     }
                 }
-                // 400 - Bad Request
+                // 400 - Bad Request 否则解析则为400错误
                 response.setStatus(400);
                 setErrorState(ErrorState.CLOSE_CLEAN, t);
+                getAdapter().log(request, response, 0);
             }
 
             // Has an upgrade been requested?
             Enumeration<String> connectionValues = request.getMimeHeaders().values("Connection");
             boolean foundUpgrade = false;
-            while (connectionValues.hasMoreElements() && !foundUpgrade) {
+            while (connectionValues.hasMoreElements() && !foundUpgrade) {//判断next是否有值
                 foundUpgrade = connectionValues.nextElement().toLowerCase(
                         Locale.ENGLISH).contains("upgrade");
             }
 
-            if (foundUpgrade) {
-                // Check the protocol
+            if (foundUpgrade) {//判断是否有多个header，不太理解，默认没有
+                // Check the protocol 获取Upgrade的信息
                 String requestedProtocol = request.getHeader("Upgrade");
 
                 UpgradeProtocol upgradeProtocol = httpUpgradeProtocols.get(requestedProtocol);
@@ -768,11 +769,11 @@ public class Http11Processor extends AbstractProcessor {
                 }
             }
 
-            if (getErrorState().isIoAllowed()) {
+            if (!getErrorState().isError()) {
                 // Setting up filters, and parse some request headers
                 rp.setStage(org.apache.coyote.Constants.STAGE_PREPARE);
                 try {
-                    prepareRequest();
+                    prepareRequest();//请求准备，主要是解析协议和头相关信息
                 } catch (Throwable t) {
                     ExceptionUtils.handleThrowable(t);
                     if (log.isDebugEnabled()) {
@@ -781,6 +782,7 @@ public class Http11Processor extends AbstractProcessor {
                     // 500 - Internal Server Error
                     response.setStatus(500);
                     setErrorState(ErrorState.CLOSE_CLEAN, t);
+                    getAdapter().log(request, response, 0);
                 }
             }
 
@@ -792,10 +794,10 @@ public class Http11Processor extends AbstractProcessor {
             }
 
             // Process the request in the adapter
-            if (getErrorState().isIoAllowed()) {
-                try {
+            if (!getErrorState().isError()) {
+                try {//不存在错误，进行处理
                     rp.setStage(org.apache.coyote.Constants.STAGE_SERVICE);
-                    getAdapter().service(request, response);
+                    getAdapter().service(request, response);//通过adapter处理请求
                     // Handle when the response was committed before a serious
                     // error occurred.  Throwing a ServletException should both
                     // set the status to 500 and set the errorException.
@@ -969,7 +971,7 @@ public class Http11Processor extends AbstractProcessor {
             http11 = false;
             keepAlive = false;
         } else {
-            // Unsupported protocol
+            // Unsupported protocol http版本不支持错误
             http11 = false;
             // Send 505; Unsupported HTTP version
             response.setStatus(505);
@@ -982,7 +984,7 @@ public class Http11Processor extends AbstractProcessor {
 
         MimeHeaders headers = request.getMimeHeaders();
 
-        // Check connection header
+        // Check connection header connection的header解析，
         MessageBytes connectionValueMB = headers.getValue(Constants.CONNECTION);
         if (connectionValueMB != null) {
             ByteChunk connectionValueBC = connectionValueMB.getByteChunk();
@@ -994,7 +996,7 @@ public class Http11Processor extends AbstractProcessor {
             }
         }
 
-        if (http11) {
+        if (http11) {//see https://www.cnblogs.com/jikexianfeng/p/6100649.html
             MessageBytes expectMB = headers.getValue("expect");
             if (expectMB != null) {
                 if (expectMB.indexOfIgnoreCase("100-continue", 0) != -1) {

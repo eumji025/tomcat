@@ -56,11 +56,14 @@ public class CatalinaProperties {
 
     /**
      * Load properties.
+     * 加载catalina的配置文件，默认指向当前project的conf目录catalina.properties
+     *
      */
     private static void loadProperties() {
 
         InputStream is = null;
         try {
+            //获取系统中的catalina.config对应的属性值
             String configUrl = System.getProperty("catalina.config");
             if (configUrl != null) {
                 is = (new URL(configUrl)).openStream();
@@ -69,10 +72,14 @@ public class CatalinaProperties {
             handleThrowable(t);
         }
 
+        //如果不存在
         if (is == null) {
             try {
+                //获取默认的catalina配置路径（当前project的path）
                 File home = new File(Bootstrap.getCatalinaBase());
+                //获取conf目录
                 File conf = new File(home, "conf");
+                //加载catalina.properties配置文件
                 File propsFile = new File(conf, "catalina.properties");
                 is = new FileInputStream(propsFile);
             } catch (Throwable t) {
@@ -80,6 +87,7 @@ public class CatalinaProperties {
             }
         }
 
+        //如果没有获取到，则获取默认路径下的配置文件
         if (is == null) {
             try {
                 is = CatalinaProperties.class.getResourceAsStream
@@ -112,7 +120,7 @@ public class CatalinaProperties {
             properties = new Properties();
         }
 
-        // Register the properties as system properties
+        // Register the properties as system properties 记录到系统变量中（应用可以从system获取tomcat的配置）
         Enumeration<?> enumeration = properties.propertyNames();
         while (enumeration.hasMoreElements()) {
             String name = (String) enumeration.nextElement();

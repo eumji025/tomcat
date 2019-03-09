@@ -222,6 +222,7 @@ public class Connector extends LifecycleMBeanBase  {
     /**
      * Coyote Protocol handler class name.
      * Defaults to the Coyote HTTP/1.1 protocolHandler.
+     * 默认使用Http11NioProtocol
      */
     protected String protocolHandlerClassName =
         "org.apache.coyote.http11.Http11NioProtocol";

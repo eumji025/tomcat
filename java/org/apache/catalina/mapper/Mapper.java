@@ -696,7 +696,7 @@ public final class Mapper {
         host.toChars();
         uri.toChars();
         internalMap(host.getCharChunk(), uri.getCharChunk(), version,
-                mappingData);
+                mappingData);//重要
     }
 
 
@@ -740,6 +740,8 @@ public final class Mapper {
             throw new AssertionError();
         }
 
+        uri.setLimit(-1);
+
         // Virtual host mapping
         MappedHost[] hosts = this.hosts;
         MappedHost mappedHost = exactFindIgnoreCase(hosts, host);
@@ -765,13 +767,6 @@ public final class Mapper {
             }
         }
         mappingData.host = mappedHost.object;
-
-        if (uri.isNull()) {
-            // Can't map context or wrapper without a uri
-            return;
-        }
-
-        uri.setLimit(-1);
 
         // Context mapping
         ContextList contextList = mappedHost.contextList;
@@ -1217,7 +1212,7 @@ public final class Mapper {
 
         int i = 0;
         while (true) {
-            i = (b + a) >>> 1;
+            i = (b + a) / 2;
             int result = compare(name, start, end, map[i].name);
             if (result == 1) {
                 a = i;
@@ -1272,7 +1267,7 @@ public final class Mapper {
 
         int i = 0;
         while (true) {
-            i = (b + a) >>> 1;
+            i = (b + a) / 2;
             int result = compareIgnoreCase(name, start, end, map[i].name);
             if (result == 1) {
                 a = i;
@@ -1319,7 +1314,7 @@ public final class Mapper {
 
         int i = 0;
         while (true) {
-            i = (b + a) >>> 1;
+            i = (b + a) / 2;
             int result = name.compareTo(map[i].name);
             if (result > 0) {
                 a = i;
@@ -1554,7 +1549,7 @@ public final class Mapper {
      * wild card host names from the external to internal form.
      */
     private static String renameWildcardHost(String hostName) {
-        if (hostName != null && hostName.startsWith("*.")) {
+        if (hostName.startsWith("*.")) {
             return hostName.substring(1);
         } else {
             return hostName;

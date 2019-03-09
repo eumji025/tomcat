@@ -120,6 +120,8 @@ import org.ietf.jgss.GSSException;
 /**
  * Wrapper object for the Coyote request.
  *
+ * tomcat的request对象实现了HttpServletRequest接口
+ *
  * @author Remy Maucherat
  * @author Craig R. McClanahan
  */
@@ -683,12 +685,12 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * The response with which this request is associated.
      */
-    protected org.apache.catalina.connector.Response response = null;
+    protected Response response = null;
 
     /**
      * @return the Response with which this Request is associated.
      */
-    public org.apache.catalina.connector.Response getResponse() {
+    public Response getResponse() {
         return this.response;
     }
 
@@ -697,7 +699,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      *
      * @param response The new associated response
      */
-    public void setResponse(org.apache.catalina.connector.Response response) {
+    public void setResponse(Response response) {
         this.response = response;
     }
 
@@ -2025,7 +2027,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     @SuppressWarnings("unchecked")
     @Override
     public <T extends HttpUpgradeHandler> T upgrade(
-            Class<T> httpUpgradeHandlerClass) throws java.io.IOException, ServletException {
+            Class<T> httpUpgradeHandlerClass) throws IOException, ServletException {
         T handler;
         InstanceManager instanceManager = null;
         try {
@@ -2785,7 +2787,12 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                     sm.getString("coyoteRequest.alreadyAuthenticated"));
         }
 
-        getContext().getAuthenticator().login(username, password, this);
+        Context context = getContext();
+        if (context.getAuthenticator() == null) {
+            throw new ServletException("no authenticator");
+        }
+
+        context.getAuthenticator().login(username, password, this);
     }
 
     /**
@@ -2864,15 +2871,6 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                             (File) context.getServletContext().getAttribute(
                                         ServletContext.TEMPDIR),
                                         locationStr).getAbsoluteFile();
-                }
-            }
-
-            if (!location.exists() && context.getCreateUploadTargets()) {
-                log.warn(sm.getString("coyoteRequest.uploadCreate",
-                        location.getAbsolutePath(), getMappingData().wrapper.getName()));
-                if (!location.mkdirs()) {
-                    log.warn(sm.getString("coyoteRequest.uploadCreateFail",
-                            location.getAbsolutePath()));
                 }
             }
 
@@ -2988,42 +2986,42 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     protected Session doGetSession(boolean create) {
 
-        // There cannot be a session if no context has been assigned yet
+        // There cannot be a session if no context has been assigned yet 获取tomcat的servlet对应的Standardcontext
         Context context = getContext();
-        if (context == null) {
+        if (context == null) {//如果不存在context则无法获取session（存在这样的情况？）
             return (null);
         }
 
         // Return the current session if it exists and is valid
-        if ((session != null) && !session.isValid()) {
+        if ((session != null) && !session.isValid()) {//检测当前请求是否存在session，并且是否过期
             session = null;
         }
-        if (session != null) {
+        if (session != null) {//如果存在则直接返回
             return (session);
         }
 
-        // Return the requested session if it exists and is valid
+        // 获取上下问对应的管理器，必须要有
         Manager manager = context.getManager();
         if (manager == null) {
             return (null);      // Sessions are not supported
         }
         if (requestedSessionId != null) {
-            try {
+            try {//如果请求中包含JSESSIONID，则查找session
                 session = manager.findSession(requestedSessionId);
             } catch (IOException e) {
                 session = null;
             }
-            if ((session != null) && !session.isValid()) {
+            if ((session != null) && !session.isValid()) {//检测存在和过期
                 session = null;
             }
             if (session != null) {
-                session.access();
+                session.access();//更新时间
                 return (session);
             }
         }
 
         // Create a new session if requested and the response is not committed
-        if (!create) {
+        if (!create) {//如果仅仅获取则直接返回
             return (null);
         }
         if (response != null
@@ -3038,11 +3036,11 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         // Re-use session IDs provided by the client in very limited
         // circumstances.
         String sessionId = getRequestedSessionId();
-        if (requestedSessionSSL) {
+        if (requestedSessionSSL) {//是否使用SSL
             // If the session ID has been obtained from the SSL handshake then
             // use it.
-        } else if (("/".equals(context.getSessionCookiePath())
-                && isRequestedSessionIdFromCookie())) {
+        } else if (("/".equals(context.getSessionCookiePath())//判断上下文是否有配置session的路径
+                && isRequestedSessionIdFromCookie())) {//并且包含sessionId
             /* This is the common(ish) use case: using the same session ID with
              * multiple web applications on the same host. Typically this is
              * used by Portlet implementations. It only works if sessions are
@@ -3053,13 +3051,13 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
              * that already exists somewhere on the host. Check if the context
              * is configured for this to be confirmed.
              */
-            if (context.getValidateClientProvidedNewSessionId()) {
+            if (context.getValidateClientProvidedNewSessionId()) {//则
                 boolean found = false;
-                for (Container container : getHost().findChildren()) {
+                for (Container container : getHost().findChildren()) {//获取engine的manager
                     Manager m = ((Context) container).getManager();
                     if (m != null) {
                         try {
-                            if (m.findSession(sessionId) != null) {
+                            if (m.findSession(sessionId) != null) {//获取session
                                 found = true;
                                 break;
                             }
@@ -3076,7 +3074,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         } else {
             sessionId = null;
         }
-        session = manager.createSession(sessionId);
+        session = manager.createSession(sessionId);//创建session
 
         // Creating a new session cookie based on that session
         if (session != null

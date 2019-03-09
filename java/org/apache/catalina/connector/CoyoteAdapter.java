@@ -299,11 +299,11 @@ public class CoyoteAdapter implements Adapter {
     @Override
     public void service(org.apache.coyote.Request req, org.apache.coyote.Response res)
             throws Exception {
-
+        //servlet规范的request和response
         Request request = (Request) req.getNote(ADAPTER_NOTES);
         Response response = (Response) res.getNote(ADAPTER_NOTES);
 
-        if (request == null) {
+        if (request == null) {//如果不存在则构建
             // Create objects
             request = connector.createRequest();
             request.setCoyoteRequest(req);
@@ -334,12 +334,12 @@ public class CoyoteAdapter implements Adapter {
         try {
             // Parse and set Catalina and configuration specific
             // request parameters
-            postParseSuccess = postParseRequest(req, request, res, response);
+            postParseSuccess = postParseRequest(req, request, res, response);//继续解析请求
             if (postParseSuccess) {
                 //check valves if we support async
-                request.setAsyncSupported(
+                request.setAsyncSupported(//判断是否支持异步
                         connector.getService().getContainer().getPipeline().isAsyncSupported());
-                // Calling the container
+                // Calling the container 获取connect对应的service，对应的容器=> engine，在获取管道
                 connector.getService().getContainer().getPipeline().getFirst().invoke(
                         request, response);
             }
@@ -419,7 +419,6 @@ public class CoyoteAdapter implements Adapter {
 
             // Recycle the wrapper request and response
             if (!async) {
-                updateWrapperErrorCount(request, response);
                 request.recycle();
                 response.recycle();
             }
@@ -493,7 +492,6 @@ public class CoyoteAdapter implements Adapter {
             ExceptionUtils.handleThrowable(t);
             log.warn(sm.getString("coyoteAdapter.accesslogFail"), t);
         } finally {
-            updateWrapperErrorCount(request, response);
             request.recycle();
             response.recycle();
         }

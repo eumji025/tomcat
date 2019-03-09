@@ -712,14 +712,14 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                 getLog().debug(sm.getString("abstractConnectionHandler.process",
                         wrapper.getSocket(), status));
             }
-            if (wrapper == null) {
+            if (wrapper == null) {//不存在wrapper则是关闭
                 // Nothing to do. Socket has been closed.
                 return SocketState.CLOSED;
             }
 
-            S socket = wrapper.getSocket();
+            S socket = wrapper.getSocket();//获取真实的socket
 
-            Processor processor = connections.get(socket);
+            Processor processor = connections.get(socket);//通过socket获取processor
             if (getLog().isDebugEnabled()) {
                 getLog().debug(sm.getString("abstractConnectionHandler.connectionsGet",
                         processor, socket));
@@ -735,10 +735,10 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                 return SocketState.OPEN;
             }
 
-            if (processor != null) {
+            if (processor != null) {//如果当前的连接已经存在processor，则移除等待的processor
                 // Make sure an async timeout doesn't fire
                 getProtocol().removeWaitingProcessor(processor);
-            } else if (status == SocketEvent.DISCONNECT || status == SocketEvent.ERROR) {
+            } else if (status == SocketEvent.DISCONNECT || status == SocketEvent.ERROR) {//如果是断开连接或者ERROR情况下则关闭连接
                 // Nothing to do. Endpoint requested a close and there is no
                 // longer a processor associated with this socket.
                 return SocketState.CLOSED;
@@ -747,15 +747,15 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
             ContainerThreadMarker.set();
 
             try {
-                if (processor == null) {
+                if (processor == null) {//看看是否存在商定的协议
                     String negotiatedProtocol = wrapper.getNegotiatedProtocol();
-                    if (negotiatedProtocol != null) {
+                    if (negotiatedProtocol != null) {//或者商定的协议
                         UpgradeProtocol upgradeProtocol =
                                 getProtocol().getNegotiatedProtocol(negotiatedProtocol);
-                        if (upgradeProtocol != null) {
+                        if (upgradeProtocol != null) {//通过协议获取processor
                             processor = upgradeProtocol.getProcessor(
                                     wrapper, getProtocol().getAdapter());
-                        } else if (negotiatedProtocol.equals("http/1.1")) {
+                        } else if (negotiatedProtocol.equals("http/1.1")) {//如果为http/1.1则忽略
                             // Explicitly negotiated the default protocol.
                             // Obtain a processor below.
                         } else {
@@ -783,26 +783,26 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                         }
                     }
                 }
-                if (processor == null) {
-                    processor = recycledProcessors.pop();
+                if (processor == null) {//如果没有，
+                    processor = recycledProcessors.pop();//通过recycledProcessors获取
                     if (getLog().isDebugEnabled()) {
                         getLog().debug(sm.getString("abstractConnectionHandler.processorPop",
                                 processor));
                     }
                 }
-                if (processor == null) {
+                if (processor == null) {//如果不存在则创建一个processor
                     processor = getProtocol().createProcessor();
                     register(processor);
                 }
-
+                //SSL检测
                 processor.setSslSupport(
                         wrapper.getSslSupport(getProtocol().getClientCertProvider()));
 
-                // Associate the processor with the connection
+                // Associate the processor with the connection 管理socket和processor关系
                 connections.put(socket, processor);
 
                 SocketState state = SocketState.CLOSED;
-                do {
+                do {//调用processor的process方法处理
                     state = processor.process(wrapper, status);
 
                     if (state == SocketState.UPGRADING) {

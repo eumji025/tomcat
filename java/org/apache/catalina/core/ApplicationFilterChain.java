@@ -176,12 +176,12 @@ public final class ApplicationFilterChain implements FilterChain {
             ApplicationFilterConfig filterConfig = filters[pos++];
             try {
                 Filter filter = filterConfig.getFilter();
-
+                //设置异步属性
                 if (request.isAsyncSupported() && "false".equalsIgnoreCase(
                         filterConfig.getFilterDef().getAsyncSupported())) {
                     request.setAttribute(Globals.ASYNC_SUPPORTED_ATTR, Boolean.FALSE);
                 }
-                if( Globals.IS_SECURITY_ENABLED ) {
+                if( Globals.IS_SECURITY_ENABLED ) {//判断是否security
                     final ServletRequest req = request;
                     final ServletResponse res = response;
                     Principal principal =
